@@ -1,4 +1,33 @@
+'''
+Copyright 2017 Nick Curtis
+
+Redistribution and use in source and binary forms, with or without modification, are 
+permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+'''
+
 import numpy as np
+
+#========================================================================================
+#Neural Network Class (The brain)
+#========================================================================================
+
 
 class NeuralNet(object):
 	"""A simple image recognition neural net"""
@@ -26,18 +55,33 @@ class NeuralNet(object):
 		#sigmoid hidden layer and get total output layer ready for sigmoid
 		for i in range(3):
 			hiddenTotal[i] = sigmoid(hiddenTotal[i])
-			total += hiddenTotal[i] * self.layers[i+6] #Plus 6 here to align idexing
+			total += hiddenTotal[i] * self.layers[i+6] #Plus 6 here to align indexing
 
 		total = sigmoid(total)
 		print "Total:",total
 		return total
 
+	def learn(self, inputs, target):
+		activation = self.think(inputs)
+		error = float(target) - activation
+		deltaOutput = sigDeriv(activation) * error
+
+		print "DELTA OUTPUT:",deltaOutput
 
 
 
-		
+#========================================================================================
+#Helper Functions
+#========================================================================================
+
+
+#The activation function		
 def sigmoid(x):
 	return 1.0 / (1 + np.exp(-x))
+
+#The derivative of the activation funtion, used for regression
+def sigDeriv(x):
+	return np.exp(x)/((1 + np.exp(x))**2)
 
 #return an array of floats from given file
 def read(file):
@@ -60,11 +104,16 @@ def write(file,values,length,init = False):
 	f.close()
 
 
+#========================================================================================
+#Main
+#========================================================================================
 
 
 if __name__ == '__main__':
-	nn = NeuralNet()
+	layers = read('layers.txt')
+	print layers
+	nn = NeuralNet(layers)
 	inputs = [1,1]
-	nn.think(inputs)
+	nn.learn(inputs,0)
 	#write('layers.txt',[],9,True)
-	print read('layers.txt')
+	#print read('layers.txt')
