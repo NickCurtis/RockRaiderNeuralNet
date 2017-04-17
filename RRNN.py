@@ -29,7 +29,6 @@ import random
 #Neural Network Class (The brain)
 #========================================================================================
 
-
 class NeuralNet(object):
 	"""A simple image recognition neural net. init takes layers as an array and the
 	number of input layers, the number of output layers is determined by """
@@ -124,6 +123,12 @@ def write(file,values,length,init = False):
 #Main
 #========================================================================================
 
+#I couldn't just destroy my neural net after I switched to lasagne, so that's what this
+#branch is for. I may come back to this code when I move on to other neural net. Note
+#for future people reading this (including me), this network is semi hardcoded to have
+#each node in the input layer connect to each of the hidden node. The next thing I was
+#going to work on was to change how the input layer connects to hidden layer so they
+#aren't all touching necessarily.
 
 if __name__ == '__main__':
 	target = 0
