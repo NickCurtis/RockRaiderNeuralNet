@@ -22,8 +22,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
+#from __future__ import print_function
+
+import sys
+import os
+import time
+
 import numpy as np
+import theano
+import theano.tensor as T
 import random
+
+import lasagne
+
 
 #========================================================================================
 #Neural Network Class (The brain)
@@ -60,6 +71,9 @@ class NeuralNet(object):
 		#print "hidden Total:",hiddenTotal
 		return total,hiddenTotal,hiddenTotal
 
+
+
+		#POSSIBLE THIS TRAINER IS BROKEN
 	def learn(self, inputs, target):
 		tempWeights = [None] * 3
 
@@ -89,6 +103,41 @@ class NeuralNet(object):
 #========================================================================================
 #Helper Functions
 #========================================================================================
+
+# Load our tennis ball images
+def load():
+	pass
+
+
+# Set up the convolutional nn
+def buildNetwork(inputVal = None):
+
+	#Create a nn that looks at images of size 32x32 with 3 channels
+	nn = lasagne.layers.InputLayer(shape=(None,3,32,32), input_var=inputVal)
+
+	#Set the convolutional layer to have 16 filters of size 5x5
+	nn = lasagne.layers.Conv2DLayer(nn,num_filters=32,filter_size=(5,5),
+		nonlinearity=lasagne.nonlinearities.rectify,W=lasagne.init.GlorotUniform())
+
+	#Create a max-pooling of factor 2 in both dimensions
+	nn = lasagne.layers.MaxPool2DLayer(nn, pool_size=(2,2))
+
+	# Another convolution with 32 5x5 kernels, and another 2x2 pooling:
+	nn = lasagne.layers.Conv2DLayer(nn, num_filters=32, filter_size=(5, 5),
+		nonlinearity=lasagne.nonlinearities.rectify)
+
+	nn = lasagne.layers.MaxPool2DLayer(nn, pool_size=(2, 2))
+
+    # A fully-connected layer of 256 units with 50% dropout on its inputs:
+	nn = lasagne.layers.DenseLayer(lasagne.layers.dropout(nn, p=.5),
+		num_units=256,nonlinearity=lasagne.nonlinearities.rectify)
+
+
+    # And, finally, the 10-unit output layer with 50% dropout on its inputs:
+	nn = lasagne.layers.DenseLayer(lasagne.layers.dropout(nn, p=.5),
+		num_units=10,nonlinearity=lasagne.nonlinearities.softmax)
+
+	return nn
 
 
 #The activation function		
@@ -126,21 +175,14 @@ def write(file,values,length,init = False):
 
 
 if __name__ == '__main__':
-	target = 0
-	write('layers.txt',[],9,True)
-	layers = read('layers.txt')
-	print layers
-	nn = NeuralNet(layers,6)
 
+	nn = buildNetwork()
 
-	for i in range(10000):
-		inputs = [None]*2
-		for j in range(2):
-			inputs[j] = random.randint(0,1)
-		if ((inputs[0]==0 and inputs[1]==0) or (inputs[0]==1 and inputs[1]==1)):
-			target = 0
-		else:
-			target = 1
-		nn.learn(inputs,target)
-	#write('layers.txt',nn.getLayers(),9)
-	#print read('layers.txt')
+	np.savez('layers.txt', *lasagne.layers.get_all_param_values(nn))
+
+	'''
+	with np.load('model.npz') as f:
+		param_values = [f['arr_%d' % i] for i in range(len(f.files))]
+	lasagne.layers.set_all_param_values(network, param_values)
+
+	'''
