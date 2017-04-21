@@ -44,20 +44,20 @@ import lasagne
 # Load our tennis ball images
 def load(filename):
 
+	#data = np.zeros((1,3,32,32))
 	filelist = glob.glob('tennis_images/*.jpg')
 	data = np.array([np.array(Image.open(fname)) for fname in filelist])
 	values = [1] * len(filelist)
-
-
-
+	data=data.reshape((data.shape[0],3,32,32))
 	#print type(data)
-	return data,values
+	return data/np.float32(256),values
 
 # Set up the convolutional nn
-def buildNetwork(inputVal = None):
+def buildNetwork(inputShape,inputVal = None):
 
 	#Create a nn that looks at images of size 32x32 with 3 channels
-	nn = lasagne.layers.InputLayer(shape=(None,3,32,32), input_var=inputVal)
+	nn = lasagne.layers.InputLayer(
+		shape=(None,inputShape[0],inputShape[1],inputShape[2]), input_var=inputVal)
 
 	#Set the convolutional layer to have 16 filters of size 5x5
 	nn = lasagne.layers.Conv2DLayer(nn,num_filters=32,filter_size=(5,5),
@@ -83,16 +83,29 @@ def buildNetwork(inputVal = None):
 
 	return nn
 
+# ############################# Batch iterator ###############################
+# This is just a simple helper function iterating over training data in
+# mini-batches of a particular size, optionally in random order. It assumes
+# data is available as numpy arrays. For big datasets, you could load numpy
+# arrays as memory-mapped files (np.load(..., mmap_mode='r')), or write your
+# own custom data iteration function. For small datasets, you can also copy
+# them to GPU at once for slightly improved performance. This would involve
+# several changes in the main program, though, and is not demonstrated here.
+# Notice that this function returns only mini-batches of size `batchsize`.
+# If the size of the data is not a multiple of `batchsize`, it will not
+# return the last (remaining) mini-batch.
 
-#The activation function		
-def sigmoid(x):
-	return 1.0 / (1 + np.exp(-x))
-
-#The derivative of the activation funtion, used for regression
-def sigDeriv(x):
-	return np.exp(x)/((1 + np.exp(x))**2)
-
-
+def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
+    assert len(inputs) == len(targets)
+    if shuffle:
+        indices = np.arange(len(inputs))
+        np.random.shuffle(indices)
+    for start_idx in range(0, len(inputs) - batchsize + 1, batchsize):
+        if shuffle:
+            excerpt = indices[start_idx:start_idx + batchsize]
+        else:
+            excerpt = slice(start_idx, start_idx + batchsize)
+        yield inputs[excerpt], targets[excerpt]
 
 
 #========================================================================================
@@ -110,9 +123,13 @@ if __name__ == '__main__':
 	input_var = T.tensor4('inputs')
 	target_var = T.ivector('targets')
 
-	#Build the neural network using the lasagne library
-	nn = buildNetwork(input_var)
+	#Determine the shape of input layer for the neural network here
+	input_shape = data[0].shape
 
+	#Build the neural network using the lasagne library
+	nn = buildNetwork(input_shape,input_var)
+
+	#Helper code for preparing training
 
 	# Create a loss expression for training, i.e., a scalar objective we want
 	# to minimize (for our multi-class problem, it is the cross-entropy loss):
@@ -146,8 +163,29 @@ if __name__ == '__main__':
 	# Compile a second function computing the validation loss and accuracy:
 	val_fn = theano.function([input_var, target_var], [test_loss, test_acc])
 
-	for _ in range(1):
-		theano.function([input_var, target_var], loss, updates=updates)
+
+	# We'll determine the input shape from the first example from the training set.
+	input_shape=data[0].shape
+	l_in=lasagne.layers.InputLayer(
+		shape=(None,input_shape[0],input_shape[1],input_shape[2]))
+
+	print "DATA:",data
+	
+	for epoch in range(1):
+		# In each epoch, we do a full pass over the training data:
+		train_err = 0
+		train_batches = 0
+		start_time = time.time()
+		print "SHAPE:",data.shape
+		train_err += train_fn(data,values)
+		print train_err
+		'''
+		for batch in iterate_minibatches(data, values, 10, shuffle=True):
+		    inputs, targets = batch
+		    print("SHAPE:",inputs.shape)
+		    train_err += train_fn(inputs, targets)
+		    train_batches += 1
+		'''
 	
 
 	np.savez('layers.txt', *lasagne.layers.get_all_param_values(nn))
