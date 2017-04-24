@@ -33,7 +33,6 @@ import Image
 import numpy as np
 import theano
 import theano.tensor as T
-import random
 
 import lasagne
 
@@ -47,8 +46,9 @@ def load(filename):
 	#data = np.zeros((1,3,32,32))
 	filelist = glob.glob('tennis_images/*.jpg')
 	data = np.array([np.array(Image.open(fname)) for fname in filelist])
-	values = [1] * len(filelist)
 	data=data.reshape((data.shape[0],3,32,32))
+	values = np.ones(len(data))
+
 	#print type(data)
 	return data/np.float32(256),values
 
@@ -83,6 +83,32 @@ def buildNetwork(inputShape,inputVal = None):
 
 	return nn
 
+# # ############################# Batch iterator ###############################
+# # This is just a simple helper function iterating over training data in
+# # mini-batches of a particular size, optionally in random order. It assumes
+# # data is available as numpy arrays. For big datasets, you could load numpy
+# # arrays as memory-mapped files (np.load(..., mmap_mode='r')), or write your
+# # own custom data iteration function. For small datasets, you can also copy
+# # them to GPU at once for slightly improved performance. This would involve
+# # several changes in the main program, though, and is not demonstrated here.
+# # Notice that this function returns only mini-batches of size `batchsize`.
+# # If the size of the data is not a multiple of `batchsize`, it will not
+# # return the last (remaining) mini-batch.
+
+# def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
+# 	print inputs
+# 	assert inputs == targets
+# 	if shuffle:
+# 	    indices = np.arange(inputs)
+# 	    np.random.shuffle(indices)
+# 	for start_idx in range(0, inputs - batchsize + 1, batchsize):
+# 	    if shuffle:
+# 	        excerpt = indices[start_idx:start_idx + batchsize]
+# 	    else:
+# 	        excerpt = slice(start_idx, start_idx + batchsize)
+
+# 	    print "EXCERPT:",excerpt
+# 	    yield inputs[excerpt], targets[excerpt]
 # ############################# Batch iterator ###############################
 # This is just a simple helper function iterating over training data in
 # mini-batches of a particular size, optionally in random order. It assumes
@@ -97,6 +123,8 @@ def buildNetwork(inputShape,inputVal = None):
 
 def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
     assert len(inputs) == len(targets)
+    #print type(inputs)
+    #print type(targets)
     if shuffle:
         indices = np.arange(len(inputs))
         np.random.shuffle(indices)
@@ -105,6 +133,7 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
             excerpt = indices[start_idx:start_idx + batchsize]
         else:
             excerpt = slice(start_idx, start_idx + batchsize)
+        #print("EXCERPT:",excerpt)
         yield inputs[excerpt], targets[excerpt]
 
 
@@ -158,7 +187,7 @@ if __name__ == '__main__':
 
 	# Compile a function performing a training step on a mini-batch (by giving
 	# the updates dictionary) and returning the corresponding training loss:
-	train_fn = theano.function([input_var, target_var], loss, updates=updates)
+	train_fn = theano.function([input_var, target_var], loss, updates=updates,allow_input_downcast=True)
 
 	# Compile a second function computing the validation loss and accuracy:
 	val_fn = theano.function([input_var, target_var], [test_loss, test_acc])
@@ -171,21 +200,23 @@ if __name__ == '__main__':
 
 	print "DATA:",data
 	
-	for epoch in range(1):
+	for epoch in range(10):
 		# In each epoch, we do a full pass over the training data:
 		train_err = 0
 		train_batches = 0
 		start_time = time.time()
-		print "SHAPE:",data.shape
+		#print "SHAPE:",data.shape
 		train_err += train_fn(data,values)
 		print train_err
-		'''
+		
 		for batch in iterate_minibatches(data, values, 10, shuffle=True):
 		    inputs, targets = batch
-		    print("SHAPE:",inputs.shape)
+		    #print("SHAPE:",inputs.shape)
 		    train_err += train_fn(inputs, targets)
 		    train_batches += 1
-		'''
+
+	print train_err
+		
 	
 
 	np.savez('layers.txt', *lasagne.layers.get_all_param_values(nn))
