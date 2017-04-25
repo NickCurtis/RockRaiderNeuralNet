@@ -43,13 +43,21 @@ import lasagne
 # Load our tennis ball images
 def load(filename):
 
-	#data = np.zeros((1,3,32,32))
+	#Create the array of tennis images along with each image's associated value
 	filelist = glob.glob('tennis_images/*.jpg')
-	data = np.array([np.array(Image.open(fname)) for fname in filelist])
-	data=data.reshape((data.shape[0],3,32,32))
-	values = np.ones(len(data))
+	tennisData = np.array([np.array(Image.open(fname)) for fname in filelist])
+	tennisData = tennisData.reshape((tennisData.shape[0],3,32,32))
+	tennisValues = np.ones(len(tennisData))
 
-	#print type(data)
+	#Create the array of other images
+	filelist = glob.glob('other_images/*.jpg')
+	otherData = np.array([np.array(Image.open(fname)) for fname in filelist])
+	otherData = otherData.reshape((otherData.shape[0],3,32,32))
+	otherValues = np.zeros(len(otherData))
+	
+	#Put both data sets together and return
+	data = np.concatenate((tennisData,otherData))
+	values = np.concatenate((tennisValues,otherValues))
 	return data/np.float32(256),values
 
 # Set up the convolutional nn
@@ -144,8 +152,10 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
 
 if __name__ == '__main__':
 
+	print "Loading dataset...",
 	#Load images
 	data,values = load('TennisBalls.tar.gz')
+	print "done\n"
 
 
 	# Prepare Theano variables for inputs and targets
@@ -155,8 +165,12 @@ if __name__ == '__main__':
 	#Determine the shape of input layer for the neural network here
 	input_shape = data[0].shape
 
+	print "Building neural network...",
+
 	#Build the neural network using the lasagne library
 	nn = buildNetwork(input_shape,input_var)
+
+	print "done\n"
 
 	#Helper code for preparing training
 
@@ -198,24 +212,27 @@ if __name__ == '__main__':
 	l_in=lasagne.layers.InputLayer(
 		shape=(None,input_shape[0],input_shape[1],input_shape[2]))
 
-	print "DATA:",data
-	
-	for epoch in range(10):
+	#print "DATA:",data
+	print values
+	print "Starting training..."
+	for epoch in range(500):
 		# In each epoch, we do a full pass over the training data:
 		train_err = 0
 		train_batches = 0
 		start_time = time.time()
 		#print "SHAPE:",data.shape
-		train_err += train_fn(data,values)
-		print train_err
+		#train_err += train_fn(data,values)
+		#print train_err
 		
-		for batch in iterate_minibatches(data, values, 10, shuffle=True):
+		for batch in iterate_minibatches(data, values, 500, shuffle=True):
 		    inputs, targets = batch
 		    #print("SHAPE:",inputs.shape)
 		    train_err += train_fn(inputs, targets)
 		    train_batches += 1
+		print "Finished epoch %d with training error %f" %(epoch,train_err)
 
-	print train_err
+
+	#print train_err
 		
 	
 
