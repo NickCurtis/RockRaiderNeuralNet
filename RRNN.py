@@ -90,33 +90,6 @@ def buildNetwork(inputShape,inputVal = None):
 		num_units=10,nonlinearity=lasagne.nonlinearities.softmax)
 
 	return nn
-
-# # ############################# Batch iterator ###############################
-# # This is just a simple helper function iterating over training data in
-# # mini-batches of a particular size, optionally in random order. It assumes
-# # data is available as numpy arrays. For big datasets, you could load numpy
-# # arrays as memory-mapped files (np.load(..., mmap_mode='r')), or write your
-# # own custom data iteration function. For small datasets, you can also copy
-# # them to GPU at once for slightly improved performance. This would involve
-# # several changes in the main program, though, and is not demonstrated here.
-# # Notice that this function returns only mini-batches of size `batchsize`.
-# # If the size of the data is not a multiple of `batchsize`, it will not
-# # return the last (remaining) mini-batch.
-
-# def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
-# 	print inputs
-# 	assert inputs == targets
-# 	if shuffle:
-# 	    indices = np.arange(inputs)
-# 	    np.random.shuffle(indices)
-# 	for start_idx in range(0, inputs - batchsize + 1, batchsize):
-# 	    if shuffle:
-# 	        excerpt = indices[start_idx:start_idx + batchsize]
-# 	    else:
-# 	        excerpt = slice(start_idx, start_idx + batchsize)
-
-# 	    print "EXCERPT:",excerpt
-# 	    yield inputs[excerpt], targets[excerpt]
 # ############################# Batch iterator ###############################
 # This is just a simple helper function iterating over training data in
 # mini-batches of a particular size, optionally in random order. It assumes
@@ -212,27 +185,20 @@ if __name__ == '__main__':
 	l_in=lasagne.layers.InputLayer(
 		shape=(None,input_shape[0],input_shape[1],input_shape[2]))
 
-	#print "DATA:",data
-	print values
+
 	print "Starting training..."
 	for epoch in range(500):
 		# In each epoch, we do a full pass over the training data:
 		train_err = 0
 		train_batches = 0
 		start_time = time.time()
-		#print "SHAPE:",data.shape
-		#train_err += train_fn(data,values)
-		#print train_err
 		
-		for batch in iterate_minibatches(data, values, 500, shuffle=True):
+		for batch in iterate_minibatches(data, values, 100, shuffle=True):
 		    inputs, targets = batch
 		    #print("SHAPE:",inputs.shape)
 		    train_err += train_fn(inputs, targets)
 		    train_batches += 1
 		print "Finished epoch %d with training error %f" %(epoch,train_err)
-
-
-	#print train_err
 		
 	
 
