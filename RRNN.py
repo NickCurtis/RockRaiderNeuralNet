@@ -137,6 +137,7 @@ if __name__ == '__main__':
 
 	#Determine the shape of input layer for the neural network here
 	input_shape = data[0].shape
+	print input_shape
 
 	print "Building neural network...",
 
@@ -178,13 +179,6 @@ if __name__ == '__main__':
 
 	# Compile a second function computing the validation loss and accuracy:
 	val_fn = theano.function([input_var, target_var], [test_loss, test_acc])
-
-
-	# We'll determine the input shape from the first example from the training set.
-	input_shape=data[0].shape
-	l_in=lasagne.layers.InputLayer(
-		shape=(None,input_shape[0],input_shape[1],input_shape[2]))
-
 
 	print "Starting training..."
 	for epoch in range(500):
