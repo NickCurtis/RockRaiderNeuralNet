@@ -97,9 +97,12 @@ if __name__ == '__main__':
 	print("Predicted class for first test input: %r" % predict_fn(cropped))
 	print np.median(predict_fn(cropped))
 	
+
+	'''
 	#Set up camera feed
 	cap = cv2.VideoCapture(0)
 
+	
 	while(True):
 	    # Capture frame-by-frame
 	    ret, frame = cap.read()
@@ -127,8 +130,12 @@ if __name__ == '__main__':
 	    if cv2.waitKey(1) & 0xFF == ord('q'):
 	        break
 
+	
+
 	# When everything done, release the capture
 	cap.release()
+
+	'''
 	
 	
 	cv2.destroyAllWindows()
