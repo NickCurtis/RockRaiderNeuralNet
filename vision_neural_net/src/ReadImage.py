@@ -49,6 +49,7 @@ import cv2
 import sys
 import argparse
 import time
+import glob
 
 import numpy as np
 import theano
@@ -64,10 +65,92 @@ import lasagne
 
 #Setup
 #every node should have one
+def Setup(args):
+
+
+	#Set up camera feed
+	if args.vid == 'cam':
+		print 'Setting up camera feed...',
+		cap = cv2.VideoCapture(0)
+		print 'done'
+	elif args.vid == 'image':
+		cap = -1
+	elif args.vid == 'ros':
+		print 'ROS is not currently supported'
+		return
+	else:
+		print 'Argument not supported'
+		return
+
+
+	print 'Building the neural network...',
+	predict_fn = prepare_network()
+	print 'done.'
+
+	#Create and show this image for testing (I'm pointing the
+	#camera back at the screen so it can see a tennis ball)
+	#NOTE: this is a temporary solution until I can get
+	#ROS to work with relative paths
+	img = cv2.imread('/home/nick/catkin_ws/src/RockRaiderNeuralNet/vision_neural_net/src/Tennis.jpg',-1)
+	cv2.imshow('image',img)
+
+	#Crop the image to 32x32 so that the nn can read it
+	cropped = img[0:1080,420:1500]
+	cropped = cv2.resize(cropped, (32, 32))
+
+	cropped = np.array([cropped])/np.float64(256)
+	cropped = cropped.reshape((cropped.shape[0],3,32,32))
+
+	#Make a prediction on our ideal tennis ball
+	print("Predicted class for first test input: %r" % predict_fn(cropped))
+	print np.median(predict_fn(cropped))
+
+	#Run through the main loop of the program
+	Loop(cap)
+
+	cv2.destroyAllWindows()
+	return
+	
+
+
+
 
 
 #Loop
 #every node should have one
+def Loop(cap):
+	if cap == -1:
+		return
+	while(True):
+	    # Capture frame-by-frame
+	    ret, frame = cap.read()
+
+	    #crop the image to 32x32 from 480p
+	    cropped_frame = frame[0:480,80:560]
+	    cropped_frame = cv2.resize(cropped, (32, 32))
+
+	    #Convert image to float for prediction function
+	    cropped_frame = np.array([cropped])/np.float32(256)
+	    cropped_frame = cropped_frame.reshape((cropped_frame.shape[0],3,32,32))
+	    prediction = predict_fn(cropped_frame)
+	    #print prediction
+	    #print np.median(prediction)
+
+	    #make a guess as to whether it's a tennis ball
+	    if np.median(prediction) < 0.0000001:
+	    	print "I see a tennis ball"
+
+	    else:
+	    	print "I don't see a tennis ball"
+
+	    # Display the resulting frame
+	    cv2.imshow('frame',frame)
+	    if cv2.waitKey(1) & 0xFF == ord('q'):
+	    	# When everything done, release the capture
+	    	cap.release()
+	        return
+
+
 
 
 #########################################################################################
@@ -75,10 +158,46 @@ import lasagne
 
 #Helper Functions
 
+'''
+parse_arguments
+Allows for command line arguments to be run when calling rosrun
+'''
 def parse_arguments():
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-vid", "-v",type=str, default = "cam",
+	 help="Run ReadImage.py with desired video source,\
+	 currently accepted parameters are 'image', 'cam', and 'ros'")
+	return parser.parse_args()
 
-# Set up the convolutional nn
-def buildNetwork(inputShape,inputVal = None):
+
+'''
+prepare_network
+Using build_network with given weights and Theano,
+set up the predictor functionused in the camera feed
+'''
+def prepare_network():
+	input_var = T.tensor4('inputs')
+
+	#Build a network with random weights
+	nn = build_network((3,32,32),input_var)
+
+	#Load our network with weights from training
+	with np.load('/home/nick/catkin_ws/src/RockRaiderNeuralNet/vision_neural_net/src/layers.txt.npz') as f:
+		layers = [f['arr_%d' % i] for i in range(len(f.files))]
+	lasagne.layers.set_all_param_values(nn,layers)
+
+	#Create the prediction function to guess whether image is a tennis ball or not
+	prediction = lasagne.layers.get_output(nn, deterministic=True)
+	predict_fn = theano.function([input_var], prediction)
+
+	return predict_fn
+
+
+'''
+build_network
+Set up the convolutional nn
+'''
+def build_network(inputShape,inputVal = None):
 
 	#Create a nn that looks at images of size 32x32 with 3 channels
 	nn = lasagne.layers.InputLayer(
@@ -111,80 +230,8 @@ def buildNetwork(inputShape,inputVal = None):
 
 #########################################################################################
 
+#Main
 
-if __name__ == '__main__':	
-	
-	input_var = T.tensor4('inputs')
-
-	#Create and show this image for testing (I'm pointing the camera back at the screen
-	#so it can see a tennis ball)
-	img = cv2.imread('Tennis.jpg',-1)
-	cv2.imshow('image',img)
-
-
-	cropped = img[0:1080,420:1500]
-	cropped = cv2.resize(cropped, (32, 32))
-
-	cropped = np.array([cropped])/np.float64(256)
-	cropped = cropped.reshape((cropped.shape[0],3,32,32))
-
-	
-	#Build a network with random weights
-	nn = buildNetwork((3,32,32),input_var)
-
-	#Load our network with weights from training
-	with np.load('layers.txt.npz') as f:
-		layers = [f['arr_%d' % i] for i in range(len(f.files))]
-	lasagne.layers.set_all_param_values(nn,layers)
-
-	#Create the prediction function to guess whether image is a tennis ball or not
-	prediction = lasagne.layers.get_output(nn, deterministic=True)
-	predict_fn = theano.function([input_var], prediction)
-
-
-	#Make a prediction on our ideal tennis ball
-	print("Predicted class for first test input: %r" % predict_fn(cropped))
-	print np.median(predict_fn(cropped))
-	
-
-	'''
-	#Set up camera feed
-	cap = cv2.VideoCapture(0)
-
-	
-	while(True):
-	    # Capture frame-by-frame
-	    ret, frame = cap.read()
-
-	    #crop the image to 32x32 from 480p
-	    cropped = frame[0:480,80:560]
-	    cropped = cv2.resize(cropped, (32, 32))
-
-	    #Convert image to float for prediction function
-	    cropped = np.array([cropped])/np.float32(256)
-	    cropped = cropped.reshape((cropped.shape[0],3,32,32))
-	    prediction = predict_fn(cropped)
-	    #print prediction
-	    #print np.median(prediction)
-
-	    #make a guess as to whether it's a tennis ball
-	    if np.median(prediction) < 0.0000001:
-	    	print "I see a tennis ball"
-
-	    else:
-	    	print "I don't see a tennis ball"
-
-	    # Display the resulting frame
-	    cv2.imshow('frame',frame)
-	    if cv2.waitKey(1) & 0xFF == ord('q'):
-	        break
-
-	
-
-	# When everything done, release the capture
-	cap.release()
-
-	'''
-	
-	
-	cv2.destroyAllWindows()
+if __name__ == '__main__':
+	args = parse_arguments()
+	Setup(args)
